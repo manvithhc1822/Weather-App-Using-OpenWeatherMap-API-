@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title> Weather App (Using OpenWeatherMap API)</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+   body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #121212;
+    color: #eeeeee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  
+  .container {
+    background: #1f1f1f;
+    border-radius: 16px;
+    padding: 40px 35px;
+    width: 320px;
+    box-shadow: 0 10px 40px rgba(255,255,255,0.05);
+    text-align: center;
+  }
+  
+  h1 {
+    font-weight: 600;
+    margin-bottom: 30px;
+    letter-spacing: 1.3px;
+  }
+  
+  input[type="text"] {
+    width: 100%;
+    padding: 14px 18px;
+    border: none;
+    border-radius: 8px;
+    background: #2e2e2e;
+    color: #eee;
+    font-size: 16px;
+    margin-bottom: 30px;
+    transition: background 0.3s ease;
+  }
+  input[type="text"]::placeholder {
+    color: #bbb;
+  }
+  input[type="text"]:focus {
+    background: #3a3a3a;
+    outline: none;
+  }
+  
+  button {
+    background: #0abde3;
+    border: none;
+    border-radius: 9px;
+    padding: 14px 40px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #010101;
+    cursor: pointer;
+    transition: background 0.35s ease;
+    box-shadow: 0 5px 15px rgba(10,189,227,0.4);
+  }
+  button:hover {
+    background: #0984e3;
+    box-shadow: 0 7px 23px rgba(9,132,227,0.6);
+  }
+  
+  .result {
+    margin-top: 35px;
+    font-size: 18px;
+    line-height: 1.5;
+    min-height: 110px;
+  }
+  
+  .error {
+    margin-top: 25px;
+    color: #ee5253;
+    font-weight: 700;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Weather App</h1>
+  <input type="text" id="cityInput" placeholder="Enter city name" />
+  <button id="getWeatherBtn">Get Weather</button>
+
+  <div class="result" id="weatherResult"></div>
+  <div class="error" id="errorMsg"></div>
+</div>
+
+<script>
+  const weatherDescriptions = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Fog",
+    48: "Depositing rime fog",
+    51: "Light drizzle",
+    53: "Moderate drizzle",
+    55: "Dense drizzle",
+    61: "Slight rain",
+    63: "Moderate rain",
+    65: "Heavy rain",
+    71: "Slight snow fall",
+    73: "Moderate snow fall",
+    75: "Heavy snow fall",
+    80: "Rain showers",
+    95: "Thunderstorm"
+  };
+
+  async function getWeather() {
+    const city = document.getElementById("cityInput").value.trim();
+    const resultDiv = document.getElementById("weatherResult");
+    const errorDiv = document.getElementById("errorMsg");
+
+    resultDiv.innerHTML = "";
+    errorDiv.textContent = "";
+
+    if (!city) {
+      errorDiv.textContent = "Please enter a city name.";
+      return;
+    }
+
+    try {
+      // 1️⃣ Get coordinates
+      let res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}`
+      );
+      let data = await res.json();
+
+      if (!data.results || data.results.length === 0) {
+        throw new Error("City not found");
+      }
+
+      const { latitude, longitude } = data.results[0];
+
+      // 2️⃣ Get weather data (temperature, humidity, wind)
+      res = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m`
+      );
+      const weatherData = await res.json();
+
+      const current = weatherData.current_weather;
+
+      // 3️⃣ Get humidity for current hour
+      let humidity = "N/A";
+      if (weatherData.hourly) {
+        const index = weatherData.hourly.time.indexOf(current.time);
+        if (index !== -1) {
+          humidity = weatherData.hourly.relativehumidity_2m[index];
+        }
+      }
+
+      const description =
+        weatherDescriptions[current.weathercode] || "Unknown";
+
+      // 4️⃣ Display result (Wind speed added)
+      resultDiv.innerHTML = `
+        <p><strong>Temperature:</strong> ${current.temperature} °C</p>
+        <p><strong>Humidity:</strong> ${humidity} %</p>
+        <p><strong>Wind Speed:</strong> ${current.windspeed} km/h</p>
+        <p><strong>Condition:</strong> ${description}</p>
+      `;
+    } catch (error) {
+      errorDiv.textContent = error.message;
+    }
+  }
+
+  document.getElementById("getWeatherBtn").addEventListener("click", getWeather);
+  document.getElementById("cityInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") getWeather();
+  });
+</script>
+
+</body>
+</html>
